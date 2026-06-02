@@ -63,20 +63,19 @@ const TARGET_CITIES = [
 // ── Targets — Reddit + Fóruns via Google Custom Search ───────────────────────
 
 const REDDIT_TARGETS = [
-  // Subreddits locais SC/NC — keywords diretas
-  { sub: 'southcarolina',      geo: true  },
+  // Subreddits locais SC/NC — keywords diretas (alta intenção local)
   { sub: 'columbiasc',         geo: true  },
   { sub: 'charleston',         geo: true  },
   { sub: 'Greenville',         geo: true  },
   { sub: 'Charlotte',          geo: true  },
-  { sub: 'myrtle_beach',       geo: true  },
-  // Nichos de alta intenção — keyword + geo
+  // Nichos 100% de alta intenção — exige menção de cidade SC no texto
   { sub: 'Cabinets',           geo: false },
   { sub: 'Countertops',        geo: false },
   { sub: 'remodeling',         geo: false },
   { sub: 'HomeImprovement',    geo: false },
   { sub: 'FirstTimeHomeBuyer', geo: false },
   { sub: 'realestate',         geo: false },
+  { sub: 'KitchenRemodel',     geo: false },
 ];
 
 // Fóruns para busca via Google Custom Search
@@ -174,6 +173,57 @@ async function fetchRSS(subreddit, query) {
   } catch (e) {
     console.warn(`  RSS error: ${e.message}`); return [];
   }
+}
+
+// ── Bark.com direto — projetos públicos por localização ──────────────────────
+
+async function searchBark() {
+  const results = [];
+  const targets = [
+    'kitchen-cabinet-installation/south-carolina',
+    'countertop-installation/south-carolina',
+    'kitchen-remodeling/south-carolina',
+    'cabinet-maker/south-carolina',
+  ];
+
+  for (const path of targets) {
+    try {
+      const url = `https://www.bark.com/find/${path}/`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+
+      // Extrai cards de projetos do HTML
+      const cardMatches = html.matchAll(/<div[^>]*class="[^"]*request-card[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/g);
+      for (const m of cardMatches) {
+        const block   = m[1];
+        const title   = (block.match(/<h\d[^>]*>([^<]+)<\/h\d>/) || [])[1]?.trim() || '';
+        const snippet = (block.match(/<p[^>]*>([^<]+)<\/p>/) || [])[1]?.trim() || '';
+        const city    = (block.match(/class="[^"]*location[^"]*"[^>]*>([^<]+)<\//) || [])[1]?.trim() || 'SC';
+        if (!title || title.length < 10) continue;
+        results.push({
+          author:      'bark_user',
+          title,
+          selftext:    snippet,
+          permalink:   '',
+          post_url:    url,
+          subreddit:   'bark.com',
+          subreddit_name_prefixed: 'bark.com',
+          created_utc: Date.now() / 1000,
+          source:      'bark',
+        });
+      }
+      await new Promise(r => setTimeout(r, 1000));
+    } catch (e) {
+      console.warn(`  Bark error: ${e.message}`);
+    }
+  }
+  return results;
 }
 
 // ── Google Custom Search — fóruns especializados ─────────────────────────────
@@ -499,6 +549,26 @@ async function main() {
       }
       await new Promise(r => setTimeout(r, 600));
     }
+  }
+
+  // ── Bark.com — projetos públicos SC ──────────────────────────────────────
+  console.log('\n  🔍 Buscando projetos no Bark.com...');
+  const barkPosts = await searchBark();
+  console.log(`  ${barkPosts.length} projetos encontrados no Bark.`);
+  for (const post of barkPosts) {
+    const key = `bark::${post.title}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (!isRelevant(post)) continue;
+    const done = await alreadyProcessed('bark_user', post.post_url + post.title);
+    if (done) continue;
+    let assessment;
+    try { assessment = await assessAndGenerateDM(post); } catch { continue; }
+    console.log(`    [Bark] ${post.title.slice(0,50)} · ${assessment.intent_score}/10`);
+    if (!assessment.worth_contacting) continue;
+    if (!DRY_RUN) await saveProspect({ ...post, author: 'bark_user', permalink: '' }, assessment);
+    newProspects.push({ ...post, ...assessment });
+    await new Promise(r => setTimeout(r, 800));
   }
 
   // ── Fóruns via Google Custom Search ──────────────────────────────────────
