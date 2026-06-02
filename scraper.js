@@ -80,11 +80,19 @@ const REDDIT_TARGETS = [
 
 // Fóruns para busca via Google Custom Search
 const FORUM_SEARCHES = [
+  // Houzz — fórum de reforma com alta intenção de compra
   'site:houzz.com/discussions "cabinet" ("Columbia" OR "Lexington" OR "Greenville" OR "Charleston" OR "South Carolina")',
   'site:houzz.com/discussions "quartz countertop" ("SC" OR "South Carolina" OR "Charlotte")',
+  // DoItYourself / ContractorTalk / HomeTalk
   'site:doityourself.com/forum "kitchen remodel" ("Columbia SC" OR "Greenville SC" OR "Charleston SC")',
   'site:contractortalk.com "cabinet installer" "South Carolina"',
   'site:hometalk.com "kitchen renovation" ("Columbia" OR "Lexington" OR "South Carolina")',
+  // Nextdoor — vizinhos pedindo indicação de empreiteiro
+  'site:nextdoor.com "kitchen cabinets" ("Columbia" OR "Lexington" OR "Irmo" OR "Chapin" OR "Greenville" OR "South Carolina")',
+  'site:nextdoor.com "countertop" ("Columbia SC" OR "Greenville SC" OR "Charleston SC")',
+  // Angi / HomeAdvisor — pedidos de orçamento públicos
+  'site:angi.com "kitchen cabinet" ("Columbia" OR "Greenville" OR "Charleston" OR "SC")',
+  'site:homeadvisor.com "kitchen remodel" ("South Carolina" OR "Columbia SC" OR "Greenville SC")',
 ];
 
 // Keywords de COMPRA NOVA — não reparos
@@ -221,6 +229,76 @@ async function searchBark() {
       await new Promise(r => setTimeout(r, 1000));
     } catch (e) {
       console.warn(`  Bark error: ${e.message}`);
+    }
+  }
+  return results;
+}
+
+// ── Craigslist RSS — seção "wanted" das cidades SC/NC ────────────────────────
+
+const CRAIGSLIST_CITIES = [
+  'columbia',   // Columbia SC
+  'charleston', // Charleston SC
+  'greenville', // Greenville SC
+  'charlotte',  // Charlotte NC
+];
+
+const CRAIGSLIST_KEYWORDS = [
+  'kitchen cabinets',
+  'cabinet installation',
+  'countertop installation',
+  'kitchen remodel',
+  'quartz countertop',
+  'bathroom vanity',
+];
+
+function parseCraigslistRSS(xml, city) {
+  const items = [];
+  const blocks = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
+
+  for (const block of blocks) {
+    const rawTitle = (block.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/) || [])[1] || '';
+    const rawLink  = (block.match(/<link>(https?:[^<]+)<\/link>/)                           || [])[1] || '';
+    const rawDesc  = (block.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/) || [])[1] || '';
+    const pubDate  = (block.match(/<pubDate>([^<]+)<\/pubDate>/)                            || [])[1] || '';
+
+    const title = rawTitle.trim();
+    const link  = rawLink.trim();
+    if (!title || !link || title.toLowerCase() === 'craigslist') continue;
+
+    items.push({
+      author:      'craigslist_user',
+      title,
+      selftext:    stripHtml(rawDesc).slice(0, 800),
+      permalink:   '',
+      post_url:    link,
+      subreddit:   `craigslist-${city}`,
+      subreddit_name_prefixed: `craigslist/${city}`,
+      created_utc: pubDate ? new Date(pubDate).getTime() / 1000 : Date.now() / 1000,
+      source:      'craigslist',
+    });
+  }
+  return items;
+}
+
+async function searchCraigslist() {
+  const results = [];
+
+  for (const city of CRAIGSLIST_CITIES) {
+    for (const kw of CRAIGSLIST_KEYWORDS) {
+      const url = `https://${city}.craigslist.org/search/wan?format=rss&query=${encodeURIComponent(kw)}&sort=date`;
+      try {
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 BTechProspector/1.0 contact:brunosouto1108@gmail.com' },
+        });
+        if (!res.ok) { console.warn(`  Craigslist ${res.status}: ${city}/${kw}`); continue; }
+        const xml   = await res.text();
+        const posts = parseCraigslistRSS(xml, city);
+        results.push(...posts);
+      } catch (e) {
+        console.warn(`  Craigslist error ${city}/${kw}: ${e.message}`);
+      }
+      await new Promise(r => setTimeout(r, 600));
     }
   }
   return results;
@@ -571,8 +649,29 @@ async function main() {
     await new Promise(r => setTimeout(r, 800));
   }
 
+  // ── Craigslist — seção "wanted" das cidades SC/NC ────────────────────────
+  console.log('\n  🔍 Buscando no Craigslist (wanted — SC/NC)...');
+  const craigslistPosts = await searchCraigslist();
+  console.log(`  ${craigslistPosts.length} posts encontrados no Craigslist.`);
+  for (const post of craigslistPosts) {
+    const key = `craigslist::${post.post_url}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (!isRelevant(post)) continue;
+    const done = await alreadyProcessed('craigslist_user', post.post_url);
+    if (done) continue;
+    console.log(`  → [CL] ${post.subreddit} | ${post.title.slice(0, 60)}`);
+    let assessment;
+    try { assessment = await assessAndGenerateDM(post); } catch (e) { console.warn(`  GPT error: ${e.message}`); continue; }
+    console.log(`    Score: ${assessment.intent_score}/10 · ${assessment.reason}`);
+    if (!assessment.worth_contacting) continue;
+    if (!DRY_RUN) await saveProspect({ ...post, author: 'craigslist_user', permalink: '' }, assessment);
+    newProspects.push({ ...post, ...assessment });
+    await new Promise(r => setTimeout(r, 800));
+  }
+
   // ── Fóruns via Google Custom Search ──────────────────────────────────────
-  console.log('\n  🔍 Buscando em fóruns especializados (Houzz, DoItYourself, etc.)...');
+  console.log('\n  🔍 Buscando em fóruns especializados (Houzz, Nextdoor, Angi, etc.)...');
   const forumPosts = await searchForums();
   console.log(`  ${forumPosts.length} resultados de fóruns encontrados.`);
 
