@@ -521,8 +521,13 @@ async function sendDigestEmail(prospects) {
 
 <div style="max-width:620px;margin:0 auto;padding:24px 16px">
 
+  <!-- Logo -->
+  <div style="background:#ffffff;border-radius:14px 14px 0 0;padding:20px 30px 16px;text-align:center;border:1px solid #e5e7eb;border-bottom:none">
+    <img src="https://leads.btechsouto.shop/cp-cabinets-logo.png" alt="CP Cabinets &amp; Quartz" width="200" style="display:block;max-width:200px;height:auto;margin:0 auto" />
+  </div>
+
   <!-- Header -->
-  <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2d5a9e 100%);border-radius:14px;padding:28px;margin-bottom:24px;text-align:center">
+  <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2d5a9e 100%);border-radius:0 0 14px 14px;padding:26px 28px 28px;margin-bottom:24px;text-align:center">
     <p style="margin:0 0 4px;color:rgba(255,255,255,0.7);font-size:12px;text-transform:uppercase;letter-spacing:1px">${date}</p>
     <h1 style="margin:0 0 6px;color:#fff;font-size:22px;font-weight:800">
       🎯 ${prospects.length} New Lead${prospects.length > 1 ? 's' : ''} Ready for Review
