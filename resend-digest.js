@@ -100,22 +100,45 @@ async function run() {
     </div>
   </div>
 
+  <!-- What is this? -->
+  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;margin-bottom:16px">
+    <p style="margin:0 0 8px;font-weight:800;color:#92400e;font-size:14px">💡 What is this email?</p>
+    <p style="margin:0;color:#78350f;font-size:13px;line-height:1.7">
+      Every morning, our AI system automatically scans Reddit and home improvement forums looking for homeowners in <strong>South Carolina</strong> who are actively planning a <strong>kitchen or bathroom renovation</strong> — exactly the type of client CP Cabinets serves.<br><br>
+      When it finds someone relevant, it writes a <strong>personalized message</strong> ready to be sent. All you need to do is click the button and send it. No typing required.
+    </p>
+  </div>
+
   <!-- Instructions -->
   <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px">
-    <p style="margin:0 0 12px;font-weight:700;color:#111827;font-size:15px">📋 How to use these leads:</p>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div style="display:flex;align-items:flex-start;gap:12px">
-        <span style="background:#dbeafe;color:#1d4ed8;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;flex-shrink:0">1</span>
-        <p style="margin:0;color:#374151;font-size:13px;line-height:1.6">Review the leads below — these are people on Reddit <strong>actively planning kitchen/bathroom renovations</strong> in your area.</p>
+    <p style="margin:0 0 14px;font-weight:700;color:#111827;font-size:15px">📋 3 simple steps:</p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:flex-start;gap:14px">
+        <div style="background:#dbeafe;color:#1d4ed8;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:800;flex-shrink:0;min-width:28px;text-align:center">1</div>
+        <div>
+          <p style="margin:0 0 3px;font-weight:700;color:#111827;font-size:13px">Read the lead card below</p>
+          <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.5">See which person posted, what they said, and what score our AI gave them (7+ = good quality, 8-10 = hot lead).</p>
+        </div>
       </div>
-      <div style="display:flex;align-items:flex-start;gap:12px">
-        <span style="background:#dbeafe;color:#1d4ed8;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;flex-shrink:0">2</span>
-        <p style="margin:0;color:#374151;font-size:13px;line-height:1.6">Click <strong>"Send on Reddit"</strong> — the personalized message is already written. Just review and send!</p>
+      <div style="display:flex;align-items:flex-start;gap:14px">
+        <div style="background:#dcfce7;color:#15803d;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:800;flex-shrink:0;min-width:28px;text-align:center">2</div>
+        <div>
+          <p style="margin:0 0 3px;font-weight:700;color:#111827;font-size:13px">Click "Send on Reddit" — message already written</p>
+          <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.5">The message below each card is personalized and ready. Just click the orange button, it opens Reddit with the message pre-filled. Hit send. Done.</p>
+        </div>
       </div>
-      <div style="display:flex;align-items:flex-start;gap:12px">
-        <span style="background:#dbeafe;color:#1d4ed8;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;flex-shrink:0">3</span>
-        <p style="margin:0;color:#374151;font-size:13px;line-height:1.6">When they respond with interest, <strong>share this link</strong>: <a href="${SCHEDULE_URL}" style="color:#1d4ed8">${SCHEDULE_URL}</a><br>Alice will call them automatically when they fill in the form.</p>
+      <div style="display:flex;align-items:flex-start;gap:14px">
+        <div style="background:#fef3c7;color:#d97706;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:800;flex-shrink:0;min-width:28px;text-align:center">3</div>
+        <div>
+          <p style="margin:0 0 3px;font-weight:700;color:#111827;font-size:13px">When they reply — share the schedule link</p>
+          <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.5">If they're interested, just reply with: <em>"You can pick a time here: <a href="${SCHEDULE_URL}" style="color:#1d4ed8">${SCHEDULE_URL}</a>"</em><br>The moment they fill out the form, <strong>Alice calls them automatically</strong> and schedules the showroom visit.</p>
+        </div>
       </div>
+    </div>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid #f3f4f6;background:#f9fafb;border-radius:8px;padding:12px;margin-top:14px">
+      <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.6">
+        ⚠️ <strong>Important:</strong> Send a maximum of <strong>10 messages per day</strong> on Reddit to avoid restrictions. Focus on leads with score <strong>8 or higher</strong> first.
+      </p>
     </div>
   </div>
 
