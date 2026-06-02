@@ -53,7 +53,7 @@ function isInServiceArea(lat, lng) {
 
 // Palavras-chave de cidades/regiões alvo para filtro rápido em texto
 const TARGET_CITIES = [
-  'south carolina', ' sc ', ' sc,', 'columbia', 'lexington', 'chapin', 'irmo', 'cayce',
+  'south carolina', ' sc ', ' sc,', 'columbia', 'lexington', 'chapin', 'irmo', 'cayce', 'lugoff',
   'greenville', 'simpsonville', 'spartanburg', 'anderson',
   'charleston', 'summerville', 'goose creek', 'north charleston', 'mount pleasant',
   'charlotte', 'rock hill', 'fort mill',
