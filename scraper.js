@@ -27,21 +27,65 @@ const supabase = createClient(
 );
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// ── Targets — só SC e Carolinas ──────────────────────────────────────────────
+// ── Service Zones CP Cabinets (50 milhas de cada centro) ─────────────────────
 
-// Para subreddits locais: busca keywords direto
-// Para HomeImprovement (nacional): adiciona "south carolina" OU "columbia sc"
-const SEARCH_TARGETS = [
-  // Locais SC — busca keywords puras
-  { sub: 'southcarolina',  geo: true  },
-  { sub: 'columbiasc',     geo: true  },
-  { sub: 'charleston',     geo: true  },
-  { sub: 'myrtle_beach',   geo: true  },
-  { sub: 'Charlotte',      geo: true  },  // NC perto de SC
-  // Nacionais — só com filtro geográfico
-  { sub: 'HomeImprovement', geo: false },
-  { sub: 'realestate',      geo: false },
+const SERVICE_ZONES = [
+  { city: 'Columbia',   lat: 34.0007, lng: -81.0348 },
+  { city: 'Greenville', lat: 34.8526, lng: -82.3940 },
+  { city: 'Charleston', lat: 32.7765, lng: -79.9311 },
+  { city: 'Charlotte',  lat: 35.2271, lng: -80.8431 },
+];
+const MAX_RADIUS_MILES = 50;
+
+// Haversine — distância em milhas entre dois pontos lat/lng
+function haversine(lat1, lng1, lat2, lng2) {
+  const R  = 3958.8; // raio da Terra em milhas
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Retorna true se lat/lng estiver dentro do raio de QUALQUER zona
+function isInServiceArea(lat, lng) {
+  return SERVICE_ZONES.some(z => haversine(lat, lng, z.lat, z.lng) <= MAX_RADIUS_MILES);
+}
+
+// Palavras-chave de cidades/regiões alvo para filtro rápido em texto
+const TARGET_CITIES = [
+  'south carolina', ' sc ', ' sc,', 'columbia', 'lexington', 'chapin', 'irmo', 'cayce',
+  'greenville', 'simpsonville', 'spartanburg', 'anderson',
+  'charleston', 'summerville', 'goose creek', 'north charleston', 'mount pleasant',
+  'charlotte', 'rock hill', 'fort mill',
+  'orangeburg', 'aiken', 'florence', 'myrtle beach',
+];
+
+// ── Targets — Reddit + Fóruns via Google Custom Search ───────────────────────
+
+const REDDIT_TARGETS = [
+  // Subreddits locais SC/NC — keywords diretas
+  { sub: 'southcarolina',      geo: true  },
+  { sub: 'columbiasc',         geo: true  },
+  { sub: 'charleston',         geo: true  },
+  { sub: 'Greenville',         geo: true  },
+  { sub: 'Charlotte',          geo: true  },
+  { sub: 'myrtle_beach',       geo: true  },
+  // Nichos de alta intenção — keyword + geo
+  { sub: 'Cabinets',           geo: false },
+  { sub: 'Countertops',        geo: false },
+  { sub: 'remodeling',         geo: false },
+  { sub: 'HomeImprovement',    geo: false },
   { sub: 'FirstTimeHomeBuyer', geo: false },
+  { sub: 'realestate',         geo: false },
+];
+
+// Fóruns para busca via Google Custom Search
+const FORUM_SEARCHES = [
+  'site:houzz.com/discussions "cabinet" ("Columbia" OR "Lexington" OR "Greenville" OR "Charleston" OR "South Carolina")',
+  'site:houzz.com/discussions "quartz countertop" ("SC" OR "South Carolina" OR "Charlotte")',
+  'site:doityourself.com/forum "kitchen remodel" ("Columbia SC" OR "Greenville SC" OR "Charleston SC")',
+  'site:contractortalk.com "cabinet installer" "South Carolina"',
+  'site:hometalk.com "kitchen renovation" ("Columbia" OR "Lexington" OR "South Carolina")',
 ];
 
 // Keywords de COMPRA NOVA — não reparos
@@ -56,10 +100,18 @@ const BUY_KEYWORDS = [
   'kitchen makeover',
   'new construction kitchen',
   'bathroom vanity replacement',
+  'cabinet installation quote',
+  'countertop estimate',
+  'closing on a house',
+  'just bought a house',
+  'renovating before move',
 ];
 
-// Para subs nacionais, adiciona localização
-const GEO_SUFFIXES = ['south carolina', 'columbia sc', 'charleston sc', 'myrtle beach sc'];
+// Para subs nacionais, adiciona localização SC
+const GEO_SUFFIXES = [
+  'south carolina', 'columbia sc', 'charleston sc',
+  'greenville sc', 'lexington sc', 'summerville sc',
+];
 
 // Descarta imediatamente — reparos e ruídos
 const DISCARD_KEYWORDS = [
@@ -68,6 +120,8 @@ const DISCARD_KEYWORDS = [
   'selling', 'for sale', 'diy', 'ikea', 'amazon', 'lowes', 'home depot',
   'canada', 'australia', 'uk', 'england', 'london', 'toronto',
   'tutorial', 'youtube', 'how to paint', 'how to refinish',
+  'california', 'texas', 'florida', 'new york', 'ohio', 'michigan',
+  'illinois', 'pennsylvania', 'georgia', 'virginia', 'new jersey',
 ];
 
 // ── RSS Parser ────────────────────────────────────────────────────────────────
@@ -122,6 +176,41 @@ async function fetchRSS(subreddit, query) {
   }
 }
 
+// ── Google Custom Search — fóruns especializados ─────────────────────────────
+
+async function searchForums() {
+  const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
+  const cx     = process.env.GOOGLE_SEARCH_CX;
+  if (!apiKey || !cx) return [];
+
+  const results = [];
+  for (const q of FORUM_SEARCHES) {
+    try {
+      const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(q)}&num=5&dateRestrict=m1`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const item of (data.items || [])) {
+        results.push({
+          author:      'forum_user',
+          title:       item.title.replace(/ \| Houzz$| - DoItYourself\.com.*$| - HomeTalk.*$/i, ''),
+          selftext:    item.snippet || '',
+          permalink:   '',
+          post_url:    item.link,
+          subreddit:   new URL(item.link).hostname.replace('www.', ''),
+          subreddit_name_prefixed: new URL(item.link).hostname.replace('www.', ''),
+          created_utc: Date.now() / 1000 - 86400,
+          source:      'forum',
+        });
+      }
+      await new Promise(r => setTimeout(r, 500));
+    } catch (e) {
+      console.warn(`  Forum search error: ${e.message}`);
+    }
+  }
+  return results;
+}
+
 // ── Filters ───────────────────────────────────────────────────────────────────
 
 function isRelevant(post) {
@@ -141,6 +230,12 @@ function isRelevant(post) {
   if (post.author === '[deleted]') return false;
 
   return true;
+}
+
+// Filtro geográfico por menção de cidade/região alvo no texto
+function mentionsTargetArea(post) {
+  const text = `${post.title} ${post.selftext}`.toLowerCase();
+  return TARGET_CITIES.some(city => text.includes(city));
 }
 
 // ── GPT — avalia intenção e gera DM focado em VENDA NOVA ────────────────────
@@ -360,10 +455,11 @@ async function main() {
   const newProspects = [];
   const seen         = new Set();
 
-  for (const { sub, geo } of SEARCH_TARGETS) {
+  // ── Reddit ────────────────────────────────────────────────────────────────
+  for (const { sub, geo } of REDDIT_TARGETS) {
     const queries = geo
-      ? BUY_KEYWORDS                                     // locais: keyword direto
-      : BUY_KEYWORDS.slice(0, 4).map(k => `${k} ${GEO_SUFFIXES[Math.floor(Math.random() * GEO_SUFFIXES.length)]}`); // nacionais: keyword + localização
+      ? BUY_KEYWORDS
+      : BUY_KEYWORDS.slice(0, 5).map(k => `${k} ${GEO_SUFFIXES[Math.floor(Math.random() * GEO_SUFFIXES.length)]}`);
 
     for (const query of queries) {
       console.log(`  r/${sub} → "${query}"`);
@@ -375,6 +471,9 @@ async function main() {
         seen.add(key);
 
         if (!isRelevant(post)) continue;
+
+        // Para subs nacionais sem geo: exige menção de cidade-alvo no texto
+        if (!geo && !mentionsTargetArea(post)) continue;
 
         const done = await alreadyProcessed(post.author, `https://reddit.com${post.permalink}`);
         if (done) continue;
@@ -400,6 +499,52 @@ async function main() {
       }
       await new Promise(r => setTimeout(r, 600));
     }
+  }
+
+  // ── Fóruns via Google Custom Search ──────────────────────────────────────
+  console.log('\n  🔍 Buscando em fóruns especializados (Houzz, DoItYourself, etc.)...');
+  const forumPosts = await searchForums();
+  console.log(`  ${forumPosts.length} resultados de fóruns encontrados.`);
+
+  for (const post of forumPosts) {
+    const key = `forum::${post.post_url}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    if (!isRelevant(post)) continue;
+
+    const done = await alreadyProcessed('forum_user', post.post_url || '');
+    if (done) continue;
+
+    console.log(`  → [Forum] ${post.subreddit} | ${post.title.slice(0, 60)}`);
+
+    let assessment;
+    try {
+      assessment = await assessAndGenerateDM(post);
+    } catch (e) {
+      console.warn(`  GPT error: ${e.message}`); continue;
+    }
+
+    console.log(`    Score: ${assessment.intent_score}/10 · ${assessment.reason}`);
+    if (!assessment.worth_contacting) continue;
+
+    if (!DRY_RUN) {
+      await supabase.from('outbound_prospects').insert({
+        client_id:    CP_CLIENT_ID,
+        source:       'forum',
+        username:     'forum_user',
+        post_url:     post.post_url,
+        subreddit:    post.subreddit,
+        post_title:   post.title,
+        post_content: post.selftext?.slice(0, 1000) || '',
+        intent_score: assessment.intent_score,
+        dm_text:      assessment.dm_text,
+        dm_sent:      false,
+      }).on('conflict', 'post_url', qb => qb.ignoreDuplicates());
+    }
+
+    newProspects.push({ ...post, ...assessment });
+    await new Promise(r => setTimeout(r, 800));
   }
 
   console.log(`\n✅ ${newProspects.length} prospects qualificados.`);
