@@ -392,7 +392,7 @@ If worth contacting, write a SHORT natural Reddit DM (3-4 sentences) that:
 - References something specific from their post
 - Mentions CP Cabinets & Quartz is in Columbia, SC with a showroom
 - Offers a free in-home estimate OR showroom visit
-- Ends with this link naturally: ${SCHEDULE_URL}
+- Ends with this link naturally: ${WEBSITE_URL}
 - NO emojis, NO "Hey there!", NO corporate tone
 - Sound like: "Saw your post about [X]. We actually specialize in exactly that at CP Cabinets in Columbia. [1 sentence value prop]. Happy to give you a free estimate: [link]"
 
