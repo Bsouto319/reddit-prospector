@@ -27,15 +27,40 @@ const supabase = createClient(
 );
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// ── Service Zones CP Cabinets (50 milhas de cada centro) ─────────────────────
+// ── Service Zones — carregadas do Supabase (clients.service_zones) ───────────
+// Fallback para zonas fixas se o campo estiver vazio no dashboard
 
-const SERVICE_ZONES = [
+const DEFAULT_SERVICE_ZONES = [
   { city: 'Columbia',   lat: 34.0007, lng: -81.0348 },
   { city: 'Greenville', lat: 34.8526, lng: -82.3940 },
   { city: 'Charleston', lat: 32.7765, lng: -79.9311 },
   { city: 'Charlotte',  lat: 35.2271, lng: -80.8431 },
 ];
+let SERVICE_ZONES    = DEFAULT_SERVICE_ZONES;
 const MAX_RADIUS_MILES = 50;
+
+async function loadServiceZones() {
+  try {
+    const { data } = await supabase
+      .from('clients')
+      .select('service_zones, max_radius_miles')
+      .eq('id', CP_CLIENT_ID)
+      .single();
+
+    if (data?.service_zones?.length) {
+      SERVICE_ZONES = data.service_zones.map(z => ({
+        city: z.city,
+        lat:  parseFloat(z.lat),
+        lng:  parseFloat(z.lng),
+      }));
+      console.log(`  ✅ Zonas carregadas do Supabase: ${SERVICE_ZONES.map(z => z.city).join(', ')}`);
+    } else {
+      console.log('  ℹ️  Sem zonas no Supabase — usando zonas padrão.');
+    }
+  } catch (e) {
+    console.warn('  ⚠️  Erro ao carregar zonas do Supabase:', e.message, '— usando padrão.');
+  }
+}
 
 // Haversine — distância em milhas entre dois pontos lat/lng
 function haversine(lat1, lng1, lat2, lng2) {
@@ -584,6 +609,9 @@ async function sendDigestEmail(prospects) {
 async function main() {
   console.log(`\n🔍 CP Cabinets Prospector — ${DRY_RUN ? 'DRY RUN' : 'LIVE'}`);
   console.log(`${new Date().toISOString()}\n`);
+
+  // Carrega zonas de serviço do dashboard (Settings → Service Zones)
+  await loadServiceZones();
 
   const newProspects = [];
   const seen         = new Set();
