@@ -10,14 +10,20 @@
  *   → cola no .env
  */
 
+require('dotenv').config();
 const http   = require('http');
 const { exec } = require('child_process');
 const fetch  = require('node-fetch');
 const fs     = require('fs');
 
-const CLIENT_ID     = '155394808256-r9ro0qj2dtv701bjdtlala1urlvcradq.apps.googleusercontent.com';
-const CLIENT_SECRET = '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';
+const CLIENT_ID     = process.env.GMAIL_CLIENT_ID;
+const CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
 const REDIRECT_URI  = 'http://localhost:3001';
+
+if (!CLIENT_ID || !CLIENT_SECRET) {
+  console.error('\nERROR: Set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET in .env first.\n');
+  process.exit(1);
+}
 const SCOPE         = 'https://mail.google.com/';
 
 const authUrl = `https://accounts.google.com/o/oauth2/auth`
