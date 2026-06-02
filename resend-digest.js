@@ -142,9 +142,16 @@ async function run() {
 <tr><td align="center" style="padding:24px 16px">
 <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%">
 
+  <!-- LOGO -->
+  <tr>
+    <td align="center" style="background:#ffffff;border-radius:14px 14px 0 0;padding:20px 30px 16px;border-bottom:1px solid #e5e7eb">
+      <img src="https://leads.btechsouto.shop/cp-cabinets-logo.png" alt="CP Cabinets &amp; Quartz" width="200" style="display:block;max-width:200px;height:auto;margin:0 auto" />
+    </td>
+  </tr>
+
   <!-- HEADER -->
   <tr>
-    <td style="background:linear-gradient(135deg,#0f2057,#1e4d9b);border-radius:14px;padding:30px;text-align:center;margin-bottom:20px">
+    <td style="background:linear-gradient(135deg,#0f2057,#1e4d9b);border-radius:0 0 14px 14px;padding:26px 30px 30px;text-align:center">
       <p style="margin:0 0 4px 0;color:rgba(255,255,255,0.6);font-size:11px;text-transform:uppercase;letter-spacing:1.5px">${date}</p>
       <h1 style="margin:0 0 6px 0;color:#ffffff;font-size:22px;font-weight:800;line-height:1.2">
         🎯 ${prospects.length} Lead${prospects.length !== 1 ? 's' : ''} Pronto${prospects.length !== 1 ? 's' : ''} para Contato
@@ -163,7 +170,7 @@ async function run() {
     </td>
   </tr>
 
-  <tr><td style="height:20px"></td></tr>
+  <tr><td style="height:24px"></td></tr>
 
   <!-- O QUE É ESTE EMAIL? -->
   <tr>
